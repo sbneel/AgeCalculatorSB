@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AgeCalc – Telegram Mini App</title>
+
+  <!-- Material Symbols + Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet"/>
+
+  <!-- Firebase v9 (compat) CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    /* ─── CSS VARIABLES ─── */
+    :root {
+      --md-sys-color-primary: #6750A4;
+      --md-sys-color-on-primary: #FFFFFF;
+      --md-sys-color-primary-container: #EADDFF;
+      --md-sys-color-secondary: #625B71;
+      --md-sys-color-secondary-container: #E8DEF8;
+      --md-sys-color-tertiary: #7D5260;
+      --md-sys-color-tertiary-container: #FFD8E4;
+      --md-sys-color-surface: #FFFBFE;
+      --md-sys-color-surface-variant: #E7E0EC;
+      --md-sys-color-on-surface: #1C1B1F;
+      --md-sys-color-on-surface-variant: #49454F;
+      --md-sys-color-outline: #79747E;
+      --md-sys-color-error: #B3261E;
+      --md-sys-color-error-container: #F9DEDC;
+      --md-elevation-1: 0 1px 2px rgba(0,0,0,.12), 0 1px 3px 1px rgba(0,0,0,.08);
+      --md-elevation-2: 0 1px 2px rgba(0,0,0,.16), 0 2px 6px 2px rgba(0,0,0,.12);
+      --md-elevation-3: 0 4px 8px 3px rgba(0,0,0,.12), 0 1px 3px rgba(0,0,0,.16);
+      --tg-theme-bg-color: #FFFBFE;
+      --tg-theme-text-color: #1C1B1F;
+      --radius-l: 28px;
+      --radius-m: 16px;
+      --radius-s: 12px;
+      --radius-xs: 8px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --md-sys-color-primary: #D0BCFF;
+        --md-sys-color-on-primary: #381E72;
+        --md-sys-color-primary-container: #4F378B;
+        --md-sys-color-secondary: #CCC2DC;
+        --md-sys-color-secondary-container: #4A4458;
+        --md-sys-color-tertiary: #EFB8C8;
+        --md-sys-color-tertiary-container: #633B48;
+        --md-sys-color-surface: #1C1B1F;
+        --md-sys-color-surface-variant: #49454F;
+        --md-sys-color-on-surface: #E6E1E5;
+        --md-sys-color-on-surface-variant: #CAC4D0;
+        --md-sys-color-outline: #938F99;
+        --md-sys-color-error: #F2B8B5;
+        --md-sys-color-error-container: #8C1D18;
+      }
+    }
+
+    /* ─── RESET & BASE ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--md-sys-color-surface);
+      color: var(--md-sys-color-on-surface);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ─── MATERIAL SYMBOLS ─── */
+    .material-symbols-rounded {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      font-size: 24px;
+      line-height: 1;
+      user-select: none;
+    }
+
+    /* ─── TOP HERO SECTION ─── */
+    .hero {
+      background: linear-gradient(145deg, var(--md-sys-color-primary) 0%, var(--md-sys-color-tertiary) 100%);
+      padding: 40px 20px 80px;
+      position: relative;
+      overflow: hidden;
+      text-align: center;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      top: -80px; right: -60px;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      width: 180px; height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      bottom: -40px; left: -40px;
+    }
+
+    /* Profile Avatar */
+    .avatar-wrap {
+      position: relative;
+      display: inline-block;
+      margin-bottom: 14px;
+    }
+    .avatar-ring {
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.5);
+      padding: 3px;
+      background: rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+    }
+    .avatar-ring img, .avatar-ring .avatar-initials {
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .avatar-initials {
+      background: var(--md-sys-color-primary-container);
+      color: var(--md-sys-color-primary);
+      font-size: 32px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .online-badge {
+      position: absolute;
+      bottom: 4px; right: 4px;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #4CAF50;
+      border: 2px solid var(--md-sys-color-primary);
+    }
+
+    .hero-name {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: .3px;
+    }
+    .hero-username {
+      font-size: 13px;
+      color: rgba(255,255,255,.7);
+      margin-top: 2px;
+    }
+    .hero-id-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 10px;
+      background: rgba(255,255,255,.15);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+    }
+
+    /* ─── MAIN CARD ─── */
+    .main-card {
+      background: var(--md-sys-color-surface);
+      border-radius: var(--radius-l) var(--radius-l) 0 0;
+      margin-top: -40px;
+      position: relative;
+      z-index: 2;
+      padding: 28px 20px 120px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    }
+
+    /* ─── SECTION LABEL ─── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      color: var(--md-sys-color-primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--md-sys-color-primary);
+      opacity: .25;
+    }
+
+    /* ─── DATE PICKER CARD ─── */
+    .date-card {
+      background: var(--md-sys-color-surface-variant);
+      border-radius: var(--radius-m);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .date-label {
+      font-size: 12px;
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .date-label .material-symbols-rounded { font-size: 18px; }
+
+    /* MD3-style outlined input */
+    .md-input-wrap {
+      position: relative;
+    }
+    .md-input {
+      width: 100%;
+      background: var(--md-sys-color-surface);
+      border: 2px solid var(--md-sys-color-outline);
+      border-radius: var(--radius-s);
+      padding: 14px 16px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--md-sys-color-on-surface);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+      -webkit-appearance: none;
+    }
+    .md-input:focus {
+      border-color: var(--md-sys-color-primary);
+      box-shadow: 0 0 0 3px rgba(103,80,164,.15);
+    }
+    .md-input[type="date"]::-webkit-calendar-picker-indicator {
+      opacity: .6;
+      cursor: pointer;
+    }
+
+    /* ─── CALCULATE BUTTON ─── */
+    .btn-calculate {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: var(--radius-l);
+      background: var(--md-sys-color-primary);
+      color: var(--md-sys-color-on-primary);
+      font-family: 'Nunito', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: .5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform .15s, box-shadow .15s, opacity .15s;
+      box-shadow: var(--md-elevation-2);
+      margin-bottom: 24px;
+    }
+    .btn-calculate:active { transform: scale(.97); opacity: .9; }
+    .btn-calculate .material-symbols-rounded { font-size: 22px; }
+
+    /* ─── RESULT CARD ─── */
+    .result-card {
+      background: linear-gradient(135deg, var(--md-sys-color-primary-container), var(--md-sys-color-secondary-container));
+      border-radius: var(--radius-m);
+      padding: 24px 20px;
+      margin-bottom: 20px;
+      display: none;
+      animation: slideUp .4s cubic-bezier(.34,1.56,.64,1) forwards;
+    }
+    .result-card.visible { display: block; }
+
+    @keyframes slideUp {
+      from { opacity:0; transform: translateY(20px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .result-age-main {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .result-age-number {
+      font-size: 72px;
+      font-weight: 900;
+      color: var(--md-sys-color-primary);
+      line-height: 1;
+      letter-spacing: -2px;
+    }
+    .result-age-label {
+      font-size: 14px;
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    /* stat chips row */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .stat-chip {
+      background: var(--md-sys-color-surface);
+      border-radius: var(--radius-s);
+      padding: 12px 8px;
+      text-align: center;
+      box-shadow: var(--md-elevation-1);
+    }
+    .stat-chip-value {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--md-sys-color-primary);
+    }
+    .stat-chip-label {
+      font-size: 10px;
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    /* next birthday */
+    .next-bday {
+      background: var(--md-sys-color-tertiary-container);
+      border-radius: var(--radius-s);
+      padding: 12px 14px;
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .next-bday .material-symbols-rounded { color: var(--md-sys-color-tertiary); font-size: 28px; }
+    .next-bday-text { font-size: 13px; color: var(--md-sys-color-on-surface); font-weight: 600; }
+    .next-bday-days { font-size: 11px; color: var(--md-sys-color-on-surface-variant); margin-top: 1px; }
+
+    /* life progress */
+    .life-progress-wrap {
+      margin-top: 16px;
+      background: var(--md-sys-color-surface);
+      border-radius: var(--radius-s);
+      padding: 14px 16px;
+      box-shadow: var(--md-elevation-1);
+    }
+    .life-progress-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--md-sys-color-on-surface-variant);
+      margin-bottom: 10px;
+    }
+    .life-bar-bg {
+      height: 8px;
+      background: var(--md-sys-color-surface-variant);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .life-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--md-sys-color-primary), var(--md-sys-color-tertiary));
+      border-radius: 4px;
+      transition: width 1s cubic-bezier(.34,1.56,.64,1);
+      width: 0%;
+    }
+
+    /* zodiac */
+    .zodiac-chip {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--md-sys-color-surface);
+      border-radius: var(--radius-s);
+      padding: 12px 14px;
+      box-shadow: var(--md-elevation-1);
+    }
+    .zodiac-emoji { font-size: 28px; }
+    .zodiac-info { }
+    .zodiac-name { font-weight: 800; color: var(--md-sys-color-on-surface); font-size: 14px; }
+    .zodiac-date { font-size: 11px; color: var(--md-sys-color-on-surface-variant); }
+
+    /* ─── HISTORY SECTION ─── */
+    .history-section { margin-top: 4px; }
+    .history-list { display: flex; flex-direction: column; gap: 10px; }
+    .history-item {
+      background: var(--md-sys-color-surface-variant);
+      border-radius: var(--radius-s);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      animation: fadeIn .3s ease forwards;
+    }
+    @keyframes fadeIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+    .history-icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--md-sys-color-primary-container);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .history-icon .material-symbols-rounded { color: var(--md-sys-color-primary); font-size: 20px; }
+    .history-info { flex: 1; }
+    .history-dob { font-size: 13px; font-weight: 700; color: var(--md-sys-color-on-surface); }
+    .history-age { font-size: 11px; color: var(--md-sys-color-on-surface-variant); margin-top: 2px; }
+    .history-del {
+      background: none; border: none; cursor: pointer;
+      color: var(--md-sys-color-outline);
+      display: flex; align-items: center;
+      padding: 6px;
+      border-radius: 50%;
+      transition: background .15s;
+    }
+    .history-del:active { background: var(--md-sys-color-error-container); }
+
+    /* ─── BOTTOM NAV ─── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--md-sys-color-surface);
+      border-top: 1px solid var(--md-sys-color-surface-variant);
+      display: flex;
+      box-shadow: 0 -2px 12px rgba(0,0,0,.08);
+      z-index: 100;
+    }
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0 10px;
+      cursor: pointer;
+      position: relative;
+      color: var(--md-sys-color-on-surface-variant);
+      transition: color .2s;
+      border: none;
+      background: none;
+      font-family: 'Nunito', sans-serif;
+    }
+    .nav-item.active { color: var(--md-sys-color-primary); }
+    .nav-indicator {
+      position: absolute;
+      top: 6px;
+      width: 64px; height: 32px;
+      border-radius: 16px;
+      background: var(--md-sys-color-secondary-container);
+      opacity: 0;
+      transform: scaleX(.6);
+      transition: opacity .2s, transform .2s;
+    }
+    .nav-item.active .nav-indicator { opacity: 1; transform: scaleX(1); }
+    .nav-icon { position: relative; z-index: 1; }
+    .nav-label { font-size: 11px; font-weight: 700; margin-top: 3px; letter-spacing: .3px; }
+
+    /* ─── VIEWS ─── */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ─── TOAST ─── */
+    .toast {
+      position: fixed;
+      bottom: 80px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--md-sys-color-on-surface);
+      color: var(--md-sys-color-surface);
+      padding: 12px 20px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ─── STATS VIEW ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stats-tile {
+      background: var(--md-sys-color-surface-variant);
+      border-radius: var(--radius-m);
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .stats-tile-icon { font-size: 32px; margin-bottom: 8px; }
+    .stats-tile-value {
+      font-size: 24px; font-weight: 900;
+      color: var(--md-sys-color-primary);
+      line-height: 1;
+    }
+    .stats-tile-label {
+      font-size: 11px;
+      color: var(--md-sys-color-on-surface-variant);
+      font-weight: 600;
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    /* ─── LOADER ─── */
+    .loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.3);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .loader.show { display: flex; }
+    .loader-ring {
+      width: 48px; height: 48px;
+      border: 4px solid var(--md-sys-color-surface);
+      border-top-color: var(--md-sys-color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── PROFILE VIEW ─── */
+    .profile-list { display: flex; flex-direction: column; gap: 2px; }
+    .profile-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--md-sys-color-surface-variant);
+    }
+    .profile-row:last-child { border-bottom: none; }
+    .profile-row-icon {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--md-sys-color-secondary-container);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .profile-row-icon .material-symbols-rounded { color: var(--md-sys-color-secondary); }
+    .profile-row-label { font-size: 12px; color: var(--md-sys-color-on-surface-variant); font-weight: 600; }
+    .profile-row-value { font-size: 15px; font-weight: 700; color: var(--md-sys-color-on-surface); margin-top: 1px; }
+
+    /* Firebase status indicator */
+    .firebase-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--md-sys-color-on-surface-variant);
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .fb-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #9E9E9E;
+    }
+    .fb-dot.connected { background: #4CAF50; }
+    .fb-dot.error { background: #F44336; }
+
+    /* empty state */
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--md-sys-color-on-surface-variant);
+    }
+    .empty-state .material-symbols-rounded { font-size: 48px; opacity: .4; margin-bottom: 12px; display: block; }
+    .empty-state p { font-size: 14px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div class="loader" id="loader"><div class="loader-ring"></div></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ─── HERO ─── -->
+<div class="hero" id="hero">
+  <div class="avatar-wrap">
+    <div class="avatar-ring" id="avatarRing">
+      <div class="avatar-initials" id="avatarInitials">?</div>
+    </div>
+    <div class="online-badge"></div>
+  </div>
+  <div class="hero-name" id="heroName">Loading…</div>
+  <div class="hero-username" id="heroUsername">@telegram</div>
+  <div class="hero-id-chip">
+    <span class="material-symbols-rounded" style="font-size:14px">fingerprint</span>
+    <span id="heroId">—</span>
+  </div>
+</div>
+
+<!-- ─── MAIN CARD ─── -->
+<div class="main-card">
+
+  <!-- CALCULATE VIEW -->
+  <div class="view active" id="viewCalc">
+    <div class="section-label">
+      <span class="material-symbols-rounded" style="font-size:16px">cake</span>
+      Date of Birth
+    </div>
+
+    <div class="date-card">
+      <div class="date-label">
+        <span class="material-symbols-rounded">today</span>
+        Enter your birthday
+      </div>
+      <div class="md-input-wrap">
+        <input type="date" class="md-input" id="dobInput" />
+      </div>
+    </div>
+
+    <button class="btn-calculate" id="calcBtn" onclick="calculate()">
+      <span class="material-symbols-rounded">calculate</span>
+      Calculate Age
+    </button>
+
+    <!-- RESULT -->
+    <div class="result-card" id="resultCard">
+      <div class="result-age-main">
+        <div class="result-age-number" id="ageNumber">0</div>
+        <div class="result-age-label">years old</div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-chip">
+          <div class="stat-chip-value" id="statMonths">0</div>
+          <div class="stat-chip-label">Months</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-value" id="statDays">0</div>
+          <div class="stat-chip-label">Days</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-value" id="statWeeks">0</div>
+          <div class="stat-chip-label">Weeks</div>
+        </div>
+      </div>
+
+      <!-- Next Birthday -->
+      <div class="next-bday">
+        <span class="material-symbols-rounded">celebration</span>
+        <div>
+          <div class="next-bday-text" id="nextBdayText">Next birthday</div>
+          <div class="next-bday-days" id="nextBdayDays"></div>
+        </div>
+      </div>
+
+      <!-- Life Progress -->
+      <div class="life-progress-wrap">
+        <div class="life-progress-header">
+          <span>Life Journey (avg. 80 yrs)</span>
+          <span id="lifePercent">0%</span>
+        </div>
+        <div class="life-bar-bg">
+          <div class="life-bar-fill" id="lifeBar"></div>
+        </div>
+      </div>
+
+      <!-- Zodiac -->
+      <div class="zodiac-chip">
+        <div class="zodiac-emoji" id="zodiacEmoji">♈</div>
+        <div class="zodiac-info">
+          <div class="zodiac-name" id="zodiacName">Aries</div>
+          <div class="zodiac-date" id="zodiacDate">Mar 21 – Apr 19</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY VIEW -->
+  <div class="view" id="viewHistory">
+    <div class="firebase-status">
+      <div class="fb-dot" id="fbDot"></div>
+      <span id="fbStatus">Firebase not connected</span>
+    </div>
+    <div class="section-label">
+      <span class="material-symbols-rounded" style="font-size:16px">history</span>
+      Calculation History
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="empty-state">
+        <span class="material-symbols-rounded">hourglass_empty</span>
+        <p>No history yet.<br>Calculate your age first!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS VIEW -->
+  <div class="view" id="viewStats">
+    <div class="section-label">
+      <span class="material-symbols-rounded" style="font-size:16px">bar_chart</span>
+      Fun Stats
+    </div>
+    <div id="statsContainer">
+      <div class="empty-state">
+        <span class="material-symbols-rounded">analytics</span>
+        <p>Calculate your age first<br>to see fun stats!</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE VIEW -->
+  <div class="view" id="viewProfile">
+    <div class="section-label">
+      <span class="material-symbols-rounded" style="font-size:16px">person</span>
+      Telegram Profile
+    </div>
+    <div class="profile-list" id="profileList"></div>
+  </div>
+
+</div>
+
+<!-- ─── BOTTOM NAV ─── -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchView('Calc', this)">
+    <div class="nav-indicator"></div>
+    <span class="material-symbols-rounded nav-icon">cake</span>
+    <span class="nav-label">Calculate</span>
+  </button>
+  <button class="nav-item" onclick="switchView('History', this)">
+    <div class="nav-indicator"></div>
+    <span class="material-symbols-rounded nav-icon">history</span>
+    <span class="nav-label">History</span>
+  </button>
+  <button class="nav-item" onclick="switchView('Stats', this)">
+    <div class="nav-indicator"></div>
+    <span class="material-symbols-rounded nav-icon">bar_chart</span>
+    <span class="nav-label">Stats</span>
+  </button>
+  <button class="nav-item" onclick="switchView('Profile', this)">
+    <div class="nav-indicator"></div>
+    <span class="material-symbols-rounded nav-icon">person</span>
+    <span class="nav-label">Profile</span>
+  </button>
+</nav>
+
+<script>
+/* ─────────────────────────────────────────────────────
+   FIREBASE CONFIG  ← Replace with your own config
+   ───────────────────────────────────────────────────── */
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyAMyMCQtepeeJbcgrhcty95TOBdEf4m5rI",
+  authDomain: "agecalculatorsb.firebaseapp.com",
+  databaseURL: "https://agecalculatorsb-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "agecalculatorsb",
+  storageBucket: "agecalculatorsb.firebasestorage.app",
+  messagingSenderId: "463118896148",
+  appId: "1:463118896148:web:581bec40603892be362b01",
+  measurementId: "G-LLFJRHX6X6"
+
+};
+
+/* ─────────────────────────────────────────────────────
+   GLOBALS
+   ───────────────────────────────────────────────────── */
+let db = null;
+let tgUser = null;
+let lastCalcResult = null;
+let historyCache = [];
+
+/* ─────────────────────────────────────────────────────
+   INIT
+   ───────────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', async () => {
+  initTelegram();
+  await initFirebase();
+  loadHistory();
+  setDefaultDate();
+});
+
+function initTelegram() {
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    tg.setHeaderColor('secondary_bg_color');
+
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      tgUser = user;
+      renderProfile(user);
+    } else {
+      renderMockProfile(); // Dev fallback
+    }
+  } else {
+    renderMockProfile();
+  }
+}
+
+function renderProfile(user) {
+  const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Telegram User';
+  const username = user.username ? `@${user.username}` : 'No username';
+  const id = user.id ? `ID: ${user.id}` : '—';
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2);
+
+  document.getElementById('heroName').textContent = name;
+  document.getElementById('heroUsername').textContent = username;
+  document.getElementById('heroId').textContent = id;
+
+  const avatarInitials = document.getElementById('avatarInitials');
+  avatarInitials.textContent = initials;
+
+  // Try to load Telegram profile photo
+  if (user.photo_url) {
+    const img = document.createElement('img');
+    img.src = user.photo_url;
+    img.alt = name;
+    img.onerror = () => {}; // keep initials fallback
+    img.onload = () => {
+      document.getElementById('avatarRing').innerHTML = '';
+      document.getElementById('avatarRing').appendChild(img);
+    };
+  }
+
+  // Build profile list
+  const fields = [
+    { icon: 'badge', label: 'Full Name', value: name },
+    { icon: 'alternate_email', label: 'Username', value: username },
+    { icon: 'tag', label: 'Telegram ID', value: user.id || '—' },
+    { icon: 'language', label: 'Language', value: user.language_code?.toUpperCase() || 'EN' },
+    { icon: 'verified', label: 'Premium', value: user.is_premium ? '✅ Yes' : '❌ No' },
+    { icon: 'smart_toy', label: 'Bot', value: user.is_bot ? 'Yes' : 'No' },
+  ];
+  renderProfileList(fields);
+}
+
+function renderMockProfile() {
+  // Mock data for development/preview
+  tgUser = { id: 123456789, first_name: 'SB', last_name: 'Neel', username: 'alex_dev', language_code: 'en', is_premium: false };
+  renderProfile(tgUser);
+}
+
+function renderProfileList(fields) {
+  const list = document.getElementById('profileList');
+  list.innerHTML = fields.map(f => `
+    <div class="profile-row">
+      <div class="profile-row-icon">
+        <span class="material-symbols-rounded">${f.icon}</span>
+      </div>
+      <div>
+        <div class="profile-row-label">${f.label}</div>
+        <div class="profile-row-value">${f.value}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function initFirebase() {
+  try {
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    db = firebase.firestore();
+    // Test connection with a lightweight op
+    await db.collection('_ping').doc('test').set({ ts: Date.now() }, { merge: true });
+    setFirebaseStatus(true);
+  } catch (e) {
+    console.warn('Firebase not available (demo mode):', e.message);
+    setFirebaseStatus(false);
+  }
+}
+
+function setFirebaseStatus(connected) {
+  const dot = document.getElementById('fbDot');
+  const status = document.getElementById('fbStatus');
+  if (connected) {
+    dot.className = 'fb-dot connected';
+    status.textContent = 'Firebase connected';
+  } else {
+    dot.className = 'fb-dot error';
+    status.textContent = 'Local storage only (demo)';
+  }
+}
+
+function setDefaultDate() {
+  const today = new Date();
+  const max = today.toISOString().split('T')[0];
+  const dobInput = document.getElementById('dobInput');
+  dobInput.setAttribute('max', max);
+  // Default: 25 years ago
+  const defaultDate = new Date(today);
+  defaultDate.setFullYear(defaultDate.getFullYear() - 25);
+  dobInput.value = defaultDate.toISOString().split('T')[0];
+}
+
+/* ─────────────────────────────────────────────────────
+   CALCULATE
+   ───────────────────────────────────────────────────── */
+function calculate() {
+  const dobVal = document.getElementById('dobInput').value;
+  if (!dobVal) { showToast('Please select a date of birth'); return; }
+
+  const dob = new Date(dobVal);
+  const now = new Date();
+  if (dob > now) { showToast('Date cannot be in the future'); return; }
+
+  // Age in years / months / days
+  let years = now.getFullYear() - dob.getFullYear();
+  let months = now.getMonth() - dob.getMonth();
+  let days   = now.getDate()  - dob.getDate();
+
+  if (days < 0) {
+    months--;
+    const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+    days += prevMonth.getDate();
+  }
+  if (months < 0) { years--; months += 12; }
+
+  const totalDays  = Math.floor((now - dob) / 86400000);
+  const totalWeeks = Math.floor(totalDays / 7);
+  const totalMonths= years * 12 + months;
+
+  // Next birthday
+  let nextBday = new Date(now.getFullYear(), dob.getMonth(), dob.getDate());
+  if (nextBday <= now) nextBday.setFullYear(nextBday.getFullYear() + 1);
+  const daysToNext = Math.ceil((nextBday - now) / 86400000);
+  const isTodayBday = (now.getMonth() === dob.getMonth() && now.getDate() === dob.getDate());
+
+  // Life progress
+  const lifePct = Math.min(100, (years / 80 * 100)).toFixed(1);
+
+  // Zodiac
+  const zodiac = getZodiac(dob.getMonth() + 1, dob.getDate());
+
+  lastCalcResult = { dobVal, dob, years, months, days, totalDays, totalWeeks, totalMonths, daysToNext, isTodayBday, lifePct, zodiac };
+
+  // Animate UI
+  animateNumber('ageNumber', years);
+  animateNumber('statMonths', totalMonths);
+  animateNumber('statDays', totalDays);
+  animateNumber('statWeeks', totalWeeks);
+
+  document.getElementById('lifePercent').textContent = lifePct + '%';
+  setTimeout(() => { document.getElementById('lifeBar').style.width = lifePct + '%'; }, 50);
+
+  document.getElementById('zodiacEmoji').textContent = zodiac.emoji;
+  document.getElementById('zodiacName').textContent = zodiac.name;
+  document.getElementById('zodiacDate').textContent = zodiac.dates;
+
+  if (isTodayBday) {
+    document.getElementById('nextBdayText').textContent = '🎉 Happy Birthday Today!';
+    document.getElementById('nextBdayDays').textContent = 'Wishing you a wonderful day!';
+    window.Telegram?.WebApp?.showAlert?.('🎂 Happy Birthday! 🎉');
+  } else {
+    document.getElementById('nextBdayText').textContent = `Next birthday: ${nextBday.toDateString()}`;
+    document.getElementById('nextBdayDays').textContent = `${daysToNext} day${daysToNext !== 1 ? 's' : ''} to go`;
+  }
+
+  const rc = document.getElementById('resultCard');
+  rc.classList.remove('visible');
+  void rc.offsetWidth;
+  rc.classList.add('visible');
+
+  saveToHistory(lastCalcResult);
+  buildStats(lastCalcResult);
+  showToast('Age calculated! 🎉');
+
+  // Haptic feedback
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
+}
+
+function animateNumber(id, target) {
+  const el = document.getElementById(id);
+  const duration = 600;
+  const start = performance.now();
+  const from = parseInt(el.textContent) || 0;
+  function step(ts) {
+    const progress = Math.min((ts - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(from + (target - from) * ease).toLocaleString();
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+/* ─────────────────────────────────────────────────────
+   STATS
+   ───────────────────────────────────────────────────── */
+function buildStats(r) {
+  const heartbeats = Math.round(r.totalDays * 100800);
+  const breaths    = Math.round(r.totalDays * 17280);
+  const sleepHours = Math.round(r.totalDays * 8);
+  const meals      = r.totalDays * 3;
+  const seasons    = Math.floor(r.totalDays / 91.25);
+
+  const tiles = [
+    { emoji: '💓', value: (heartbeats/1e6).toFixed(1)+'M', label: 'Heartbeats' },
+    { emoji: '🌬️', value: (breaths/1e6).toFixed(1)+'M',    label: 'Breaths' },
+    { emoji: '😴', value: sleepHours.toLocaleString(),       label: 'Sleep Hours' },
+    { emoji: '🍽️', value: meals.toLocaleString(),            label: 'Meals Eaten' },
+    { emoji: '🌿', value: seasons,                           label: 'Seasons' },
+    { emoji: '🌙', value: Math.round(r.totalDays*0.0338).toLocaleString(), label: 'Full Moons' },
+  ];
+
+  document.getElementById('statsContainer').innerHTML = `
+    <div class="stats-grid">
+      ${tiles.map(t => `
+        <div class="stats-tile">
+          <div class="stats-tile-icon">${t.emoji}</div>
+          <div class="stats-tile-value">${t.value}</div>
+          <div class="stats-tile-label">${t.label}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/* ─────────────────────────────────────────────────────
+   HISTORY  (Firestore + localStorage fallback)
+   ───────────────────────────────────────────────────── */
+async function saveToHistory(r) {
+  const entry = {
+    dob: r.dobVal,
+    years: r.years,
+    months: r.months,
+    days: r.days,
+    totalDays: r.totalDays,
+    zodiac: r.zodiac.name,
+    zodiacEmoji: r.zodiac.emoji,
+    timestamp: Date.now(),
+    userId: tgUser?.id || 'demo'
+  };
+
+  // localStorage always
+  let local = JSON.parse(localStorage.getItem('ageCalcHistory') || '[]');
+  // avoid duplicate same dob
+  local = local.filter(e => e.dob !== entry.dob);
+  local.unshift(entry);
+  local = local.slice(0, 20);
+  localStorage.setItem('ageCalcHistory', JSON.stringify(local));
+
+  // Firestore if available
+  if (db && tgUser?.id) {
+    try {
+      const colRef = db.collection('age_calculations').doc(String(tgUser.id)).collection('history');
+      await colRef.add({ ...entry, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+    } catch(e) { console.warn('Firestore write failed:', e.message); }
+  }
+
+  loadHistory();
+}
+
+async function loadHistory() {
+  let entries = [];
+
+  if (db && tgUser?.id) {
+    try {
+      const snap = await db.collection('age_calculations').doc(String(tgUser.id))
+        .collection('history').orderBy('timestamp', 'desc').limit(15).get();
+      entries = snap.docs.map(d => d.data());
+      if (entries.length === 0) throw new Error('empty'); // fall to local
+    } catch {
+      entries = JSON.parse(localStorage.getItem('ageCalcHistory') || '[]');
+    }
+  } else {
+    entries = JSON.parse(localStorage.getItem('ageCalcHistory') || '[]');
+  }
+
+  historyCache = entries;
+  renderHistory(entries);
+}
+
+function renderHistory(entries) {
+  const list = document.getElementById('historyList');
+  if (!entries.length) {
+    list.innerHTML = `<div class="empty-state">
+      <span class="material-symbols-rounded">hourglass_empty</span>
+      <p>No history yet.<br>Calculate your age first!</p>
+    </div>`;
+    return;
+  }
+  list.innerHTML = entries.map((e, i) => `
+    <div class="history-item" style="animation-delay:${i*50}ms">
+      <div class="history-icon">
+        <span class="material-symbols-rounded">cake</span>
+      </div>
+      <div class="history-info">
+        <div class="history-dob">${e.zodiacEmoji} ${formatDate(e.dob)}</div>
+        <div class="history-age">${e.years} yrs • ${e.totalDays?.toLocaleString()} days • ${e.zodiac}</div>
+      </div>
+      <button class="history-del" onclick="deleteHistory(${i})" title="Delete">
+        <span class="material-symbols-rounded" style="font-size:18px">delete</span>
+      </button>
+    </div>
+  `).join('');
+}
+
+async function deleteHistory(i) {
+  historyCache.splice(i, 1);
+  let local = JSON.parse(localStorage.getItem('ageCalcHistory') || '[]');
+  local.splice(i, 1);
+  localStorage.setItem('ageCalcHistory', JSON.stringify(local));
+  renderHistory(historyCache);
+  showToast('Entry deleted');
+
+  if (db && tgUser?.id) {
+    try {
+      const snap = await db.collection('age_calculations').doc(String(tgUser.id))
+        .collection('history').orderBy('timestamp', 'desc').limit(15).get();
+      if (snap.docs[i]) await snap.docs[i].ref.delete();
+    } catch {}
+  }
+}
+
+/* ─────────────────────────────────────────────────────
+   ZODIAC
+   ───────────────────────────────────────────────────── */
+function getZodiac(month, day) {
+  const signs = [
+{ name:'Capricorn', emoji:'♑', dates:'Dec 22 – Jan 19', m:1,  d:19 },
+{ name:'Aquarius',  emoji:'♒', dates:'Jan 20 – Feb 18', m:2,  d:18 },
+{ name:'Pisces',    emoji:'♓', dates:'Feb 19 – Mar 20', m:3,  d:20 },
+{ name:'Aries',     emoji:'♈', dates:'Mar 21 – Apr 19', m:4,  d:19 },
+{ name:'Taurus',    emoji:'♉', dates:'Apr 20 – May 20', m:5,  d:20 },
+{ name:'Gemini',    emoji:'♊', dates:'May 21 – Jun 20', m:6,  d:20 },
+{ name:'Cancer',    emoji:'♋', dates:'Jun 21 – Jul 22', m:7,  d:22 },
+{ name:'Leo',       emoji:'♌', dates:'Jul 23 – Aug 22', m:8,  d:22 },
+{ name:'Virgo',     emoji:'♍', dates:'Aug 23 – Sep 22', m:9,  d:22 },
+{ name:'Libra',     emoji:'♎', dates:'Sep 23 – Oct 22', m:10, d:22 },
+{ name:'Scorpio',   emoji:'♏', dates:'Oct 23 – Nov 21', m:11, d:21 },
+{ name:'Sagittarius',emoji:'♐',dates:'Nov 22 – Dec 21', m:12, d:21 },
+{ name:'Capricorn', emoji:'♑', dates:'Dec 22 – Jan 19', m:12, d:31 }
+  ];
+  return signs.find(s => (month < s.m) || (month === s.m && day <= s.d)) || signs[0];
+}
+
+/* ─────────────────────────────────────────────────────
+   HELPERS
+   ───────────────────────────────────────────────────── */
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
+function switchView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'History') loadHistory();
+  window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
